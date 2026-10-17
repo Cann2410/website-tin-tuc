@@ -174,7 +174,64 @@
             localStorage.setItem('posts', JSON.stringify(posts));
         }
 
-        // === 2. HIỂN THỊ NAVIGATION BAR ===
+        // === 2. HÀM CRAWLER BÀI VIẾT THEO CHUẨN DATA-SLOT DÂN TRÍ ===
+        async function getArticle(url) {
+            try {
+                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+                const response = await fetch(proxyUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const html = await response.text();
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+
+                const getHTML = (selector, index = 0) => {
+                    const elements = doc.querySelectorAll(selector);
+                    return elements[index]?.innerHTML?.trim() || '';
+                };
+
+                const getText = (selector, index = 0) => {
+                    const elements = doc.querySelectorAll(selector);
+                    return elements[index]?.textContent?.trim() || '';
+                };
+
+                const parsedUrl = new URL(url);
+                const pathSegments = parsedUrl.pathname.split('/').filter(Boolean);
+                
+                // Lấy chuyên mục từ URL
+                const rawCategory = pathSegments[0] || 'thoi-su';
+                const fileName = pathSegments[pathSegments.length - 1] || '';
+
+                // Trích xuất ID và Slug
+                const idMatch = fileName.match(/(\d+)\.htm/);
+                const id = idMatch ? `dtri-${idMatch[1]}` : `dtri-${Date.now()}`;
+                const slug = fileName.replace(/\.htm$/, '').replace(/-\d+$/, '');
+
+                // Tác giả
+                let author = getText('#articleContent [rel="author"]', 1) || getText('#articleContent [rel="author"]', 0) || 'Dân trí';
+
+                return {
+                    id: id,
+                    title: getText('#articleContent [data-slot="title"]') || getText('h1'),
+                    slug: slug,
+                    excerpt: getText('#articleContent [data-slot="sapo"]'),
+                    content: doc.querySelector('#articleContent [data-slot="content"]')?.innerHTML?.trim() || getHTML('#articleContent [data-slot="content"]'),
+                    author: author,
+                    category: rawCategory,
+                    publishedAt: getText('time') || new Date().toISOString(),
+                    source: "dantri.com.vn",
+                    url: url
+                };
+
+            } catch (error) {
+                console.error("Lỗi cào dữ liệu bài viết:", error);
+                return null;
+            }
+        }
+
+        // === 3. HIỂN THỊ NAVIGATION BAR ===
         function renderNavbar() {
             const categories = getCategories();
             const navMenuEl = document.getElementById('navbarMenu');
@@ -194,7 +251,7 @@
             footerCatEl.innerHTML = footerHtml;
         }
 
-        // === 3. HIỂN THỊ DANH SÁCH BÀI VIẾT (TOP 1 LỚN + 2 NHỎ) ===
+        // === 4. HIỂN THỊ DANH SÁCH BÀI VIẾT (TOP 1 LỚN + 2 NHỎ) ===
         function renderCategory(catId = 'home') {
             const app = document.getElementById('appView');
             const posts = getPosts();
@@ -210,7 +267,7 @@
             if (catId !== 'home' && catId !== 'latest') {
                 const targetCat = categories.find(c => c.id === catId);
                 if (targetCat) currentCatTitle = targetCat.title;
-                filteredPosts = posts.filter(p => p.category && p.category.toLowerCase().includes(currentCatTitle.toLowerCase()));
+                filteredPosts = posts.filter(p => p.category && (p.category.toLowerCase().includes(catId.toLowerCase()) || p.category.toLowerCase().includes(currentCatTitle.toLowerCase())));
             } else if (catId === 'latest') {
                 currentCatTitle = "Tin Mới Nhất";
             }
@@ -278,7 +335,7 @@
             app.innerHTML = html;
         }
 
-        // === 4. TRANG CHI TIẾT BÀI VIẾT ===
+        // === 5. TRANG CHI TIẾT BÀI VIẾT ===
         function renderArticleDetail(postId) {
             const app = document.getElementById('appView');
             const posts = getPosts();
@@ -309,7 +366,7 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // === 5. CRAWLER PAGE ===
+        // === 6. TRANG CRAWLER ===
         function renderCrawlerPage() {
             const app = document.getElementById('appView');
             app.innerHTML = `
@@ -319,7 +376,7 @@
                     
                     <div class="form-group">
                         <label for="crawlUrl">Đường dẫn bài viết (URL):</label>
-                        <input type="text" id="crawlUrl" placeholder="https://dantri.com.vn/bat-dong-san/ha-noi-tinh-co-che-boi-thuong-dat-dac-biet-cho-7-du-an-duong-sat-20260928122246655.htm">
+                        <input type="text" id="crawlUrl" placeholder="https://dantri.com.vn/thoi-su/tong-bi-thu-chu-tich-nuoc-phap-luat-phai-du-on-dinh-de-nguoi-dan-yen-tam-20260928141449559.htm">
                     </div>
                     <button class="btn-submit" onclick="handleCrawl()">Bắt đầu Cào Dữ Liệu</button>
 
@@ -344,52 +401,18 @@
             if (!urlInput) { alert("Vui lòng nhập URL!"); return; }
 
             statusEl.style.color = "orange";
-            statusEl.innerText = "Đang cào dữ liệu...";
+            statusEl.innerText = "Đang cào dữ liệu bài viết...";
             previewContainer.style.display = "none";
 
-            try {
-                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(urlInput)}`;
-                const res = await fetch(proxyUrl);
-                const html = await res.text();
-                const doc = new DOMParser().parseFromString(html, 'text/html');
+            const result = await getArticle(urlInput);
 
-                const idMatch = urlInput.match(/(\d+)\.htm/);
-                const id = idMatch ? `dtri-${idMatch[1]}` : `dtri-${Date.now()}`;
-                
-                const urlParts = urlInput.split('/');
-                const slug = urlParts[urlParts.length - 1].replace(/\.htm$/, '').replace(/-\d+$/, '');
-
-                const title = doc.querySelector('h1.title-page, h1.article-title, h1')?.innerText.trim() || '';
-                const excerpt = doc.querySelector('h2.singular-sapo, .singular-sapo, .sapo')?.innerText.trim() || '';
-                
-                const contentEl = doc.querySelector('.singular-content, .article-body');
-                if (contentEl) {
-                    contentEl.querySelectorAll('.relate-container, script, style, iframe').forEach(el => el.remove());
-                }
-                const content = contentEl ? contentEl.innerText.trim() : '';
-
-                const author = doc.querySelector('.author-name b, .author-name, .singular-author')?.innerText.trim() || 'Dân trí';
-                const category = doc.querySelector('ul.breadcrumbs li:last-child a, .breadcrumbs a:last-child')?.innerText.trim() || 'Thời sự';
-                
-                const rawTime = doc.querySelector('.author-time, .singular-time')?.innerText.trim() || '';
-                let publishedAt = rawTime;
-                const timeMatch = rawTime.match(/(\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}:\d{2})/);
-                if (timeMatch) {
-                    const [_, dStr, tStr] = timeMatch;
-                    const [d, m, y] = dStr.split('/');
-                    publishedAt = `${y}-${m}-${d} ${tStr}`;
-                }
-
-                tempCrawledPost = {
-                    id, title, slug, excerpt, content, author, category, publishedAt, source: 'dantri.com.vn', url: urlInput
-                };
-
+            if (result) {
+                tempCrawledPost = result;
                 statusEl.style.color = "green";
                 statusEl.innerText = "Trích xuất bài viết thành công!";
-                jsonPreview.innerText = JSON.stringify(tempCrawledPost, null, 2);
+                jsonPreview.innerText = JSON.stringify(result, null, 2);
                 previewContainer.style.display = "block";
-
-            } catch (err) {
+            } else {
                 statusEl.style.color = "red";
                 statusEl.innerText = "Không thể cào bài viết. Vui lòng kiểm tra lại URL!";
             }
