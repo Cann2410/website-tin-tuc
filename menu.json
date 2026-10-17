@@ -1,0 +1,35 @@
+{
+  "menu": [
+    {
+      "id": "home",
+      "title": "Trang chủ",
+      "url": "https://dantri.com.vn/",
+      "type": "home"
+    },
+    {
+      "id": "thoi-su",
+      "title": "Thời sự",
+      "url": "https://dantri.com.vn/thoi-su.htm",
+      "type": "category",
+      "children": [
+        { "id": "chinh-tri", "title": "Chính trị", "url": "https://dantri.com.vn/thoi-su/chinh-tri.htm" },
+        { "id": "giao-thong", "title": "Giao thông", "url": "https://dantri.com.vn/thoi-su/giao-thong.htm" }
+      ]
+    },
+    {
+      "id": "the-gioi",
+      "title": "Thế giới",
+      "url": "https://dantri.com.vn/the-gioi.htm",
+      "type": "category",
+      "children": [
+        { "id": "quan-su", "title": "Quân sự", "url": "https://dantri.com.vn/the-gioi/quan-su.htm" }
+      ]
+    },
+    {
+      "id": "bat-dong-san",
+      "title": "Bất động sản",
+      "url": "https://dantri.com.vn/bat-dong-san.htm",
+      "type": "category"
+    }
+  ]
+}
